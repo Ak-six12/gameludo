@@ -36,3 +36,5 @@ application-local.yaml
 backend/data/
 *.mv.db
 *.trace.db
+gameludo-backend/
+gameludo-frontend/
