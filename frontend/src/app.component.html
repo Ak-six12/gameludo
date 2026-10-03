@@ -1,19 +1,10 @@
 <main class="app">
 
-
-
   <!-- HEADER -->
-
   <section class="top">
-
     <div>
-
       <h1>🎲 Ludo Online</h1>
-
-
-
       <div class="room-info" *ngIf="game">
-
         <span>Room:</span>
         <strong>{{ game.roomCode }}</strong>
         <button
@@ -23,209 +14,103 @@
         >
           {{ copiedRoom ? '✓ Copied' : '📋 Copy' }}
         </button>
-
       </div>
-
     </div>
-
-
 
     <div class="connection" *ngIf="game">
-
       ● Online
-
     </div>
-
   </section>
-
-
 
 
 
   <!-- LOBBY -->
-
   <section *ngIf="!game" class="card lobby">
-
-
-
     <div class="lobby-title">
-
       <div class="ludo-icon">🎲</div>
-
-
-
       <div>
-
         <h2>Join a game</h2>
-
         <p>Create a room or join your friend's room.</p>
-
       </div>
-
     </div>
 
-
-
     <label>
-
       Your name
-
-
-
       <input
-
         [(ngModel)]="name"
-
         maxlength="20"
-
         placeholder="Enter your name"
-
       />
-
     </label>
 
-
-
     <button
-
       class="primary-button"
-
       (click)="create()"
-
    >
-
       🎮 Create Room
-
     </button>
-
-
 
     <div class="or">
-
       <span></span>
-
       OR
-
       <span></span>
-
     </div>
 
-
-
     <label>
-
       Room code
-
-
-
       <input
-
         [(ngModel)]="room"
-
         maxlength="6"
-
         placeholder="ABC123"
-
         style="text-transform: uppercase"
-
       />
-
     </label>
 
-
-
     <button
-
       class="secondary-button"
-
       (click)="join()"
-
    >
-
       🚪 Join Room
-
     </button>
-
 
 
     <p class="error" *ngIf="error">
-
       {{ error }}
-
     </p>
-
   </section>
 
 
-
-
-
   <!-- GAME -->
-
   <section *ngIf="game" class="game">
 
-
-
     <!-- PLAYERS -->
-
     <div class="players">
-
-
-
       <div
-
         *ngFor="let p of game.players; let pi = index"
-
         class="player-card"
-
         [class.active]="game.currentPlayer === pi"
-
         [class.me]="p.id === myId"
-
      >
 
-
-
         <span
-
           class="dot"
-
           [style.background]="getPlayerColor(pi)"
-
        ></span>
 
-
-
         <div class="player-info">
-
           <strong>
-
             {{ p.name }}
-
-
-
             <span
-
               class="you"
-
               *ngIf="p.id === myId"
-
            >
-
               YOU
-
             </span>
-
           </strong>
 
-
-
-          <small>
-
+         <small>
             {{ p.finished }}/4 finished
-
           </small>
-
           <div
             class="turn-info"
             *ngIf="isCurrentPlayer(pi) && game.status === 'PLAYING'"
@@ -250,146 +135,71 @@
               [style.width.%]="getTurnProgress()"
             ></span>
           </div>
-
         </div>
 
-
-
         <span
-
           class="turn-dot"
-
           *ngIf="
-
             game.currentPlayer === pi &&
-
             game.status !== 'FINISHED'
-
           "
-
        >
-
           ●
-
         </span>
-
       </div>
-
     </div>
 
 
-
-
-
     <!-- BOARD -->
-
     <div class="board-wrapper">
-
-
-
       <div class="board-shell">
-
-
-
         <div class="board">
 
-
-
           <!-- 15 x 15 BASE CELLS -->
-
           <ng-container
-
             *ngFor="let row of [].constructor(15); let r = index"
-
          >
-
-
-
             <ng-container
-
               *ngFor="let col of [].constructor(15); let c = index"
-
            >
 
-
-
               <div
-
                 class="cell"
-
                 [class.home-green]="r < 6 && c < 6"
-
                 [class.home-yellow]="r < 6 && c>= 9"
-
                 [class.home-red]="r>= 9 && c < 6"
-
                 [class.home-blue]="r>= 9 && c>= 9"
-
              ></div>
-
-
-
             </ng-container>
-
           </ng-container>
 
 
 
-
-
           <!-- COMMON TRACK -->
-
           <div
-
             *ngFor="let cell of track"
-
             class="track-cell"
-
             [class.start-cell]="isStartPosition(cell.index)"
-
             [class.safe-cell]="isSafePosition(cell.index)"
-
             [style.gridRow]="cell.row + 1"
-
             [style.gridColumn]="cell.col + 1"
-
          >
 
-
-
             <span
-
               class="start-arrow"
-
               *ngIf="isStartPosition(cell.index)"
-
            >
-
               {{ startArrow(cell.index) }}
-
             </span>
-
-
-
             <span
-
               class="safe-star"
-
               *ngIf="
-
                 isSafePosition(cell.index) &&
-
                 !isStartPosition(cell.index)
-
               "
-
            >
-
               ★
-
             </span>
-
-
 
            <button
   *ngFor="
@@ -432,44 +242,22 @@
           </div>
 
 
-
-
-
           <!-- FINISH LANES -->
-
           <ng-container
-
             *ngFor="let pi of [0,1,2,3]"
-
          >
-
-
-
             <div
-
               *ngFor="
-
                 let lane of finishLanes[getFinishLaneIndex(pi)];
-
                 let li = index
-
               "
-
               class="finish-cell"
-
               [ngClass]="
-
                 getPlayerColorName(pi) + '-lane'
-
               "
-
               [style.gridRow]="lane.row + 1"
-
               [style.gridColumn]="lane.col + 1"
-
            >
-
-
 
               <button
   *ngFor="
@@ -513,91 +301,46 @@
             </div>
 
 
-
           </ng-container>
-
-
-
 
 
           <!-- FOUR FIXED HOME AREAS -->
 
           <ng-container
-
             *ngFor="let pi of [0,1,2,3]"
-
          >
-
-
-
             <div
-
               class="home-area"
-
               [ngClass]="getHomeClass(pi)"
-
            >
-
-
-
               <div class="home-inner">
-
-
-
                 <div
-
                   class="home-slot"
-
                   *ngFor="
-
                     let tokenIndex of [0,1,2,3]
-
                   "
-
                >
 
-
-
                   <button
-
                     *ngIf="
-
                       homeTokenVisible(
-
                         pi,
-
                         tokenIndex
-
                       )
-
                     "
-
                     class="home-token"
-
                     [ngClass]="
-
                       getPlayerColorName(pi)
-
                     "
-
                     [style.background]="
-
                       getPlayerColor(pi)
-
                     "
-
                     [class.movable]="
-
                       canMove(
-
                         tokenIndex,
-
                         pi
-
                       )
-
                     "
-
                     [attr.aria-disabled]="
   !canMove(
     tokenIndex,
@@ -608,31 +351,13 @@
   tokenIndex,
   pi
 )"
-
                  >
-
                     {{ tokenIndex + 1 }}
-
                   </button>
-
-
-
                 </div>
-
-
-
               </div>
-
-
-
             </div>
-
-
-
           </ng-container>
-
-
-
 
 
           <!-- CENTER / FINISH PEAK -->
@@ -666,267 +391,126 @@
 
 
 
-
-
         <!-- FOUR-PLAYER CONTROL BAR -->
-
         <div class="board-controls">
-
-
-
           <div class="player-strip">
-
-
-
             <div
-
               *ngFor="
-
                 let p of game.players;
-
                 let pi = index
-
               "
-
               class="mini-player"
-
               [class.mini-active]="
-
                 game.currentPlayer === pi
-
               "
-
               [class.mini-you]="
-
                 p.id === myId
-
               "
-
            >
 
-
-
               <span
-
                 class="mini-token"
-
                 [style.background]="
-
                   getPlayerColor(pi)
-
                 "
-
              ></span>
 
-
-
               <span class="mini-player-name">
-
                 {{ p.id === myId ? 'You' : p.name }}
-
               </span>
-
-
 
               <span
-
                 class="mini-turn"
-
                 *ngIf="
-
                   game.currentPlayer === pi &&
-
                   game.status === 'PLAYING'
-
                 "
-
              >
-
                 ●
-
               </span>
-
-
-
             </div>
-
-
-
           </div>
-
-
-
 
 
           <!-- DICE -->
 
           <button
-
             class="board-dice"
-
             [class.rolling]="diceRolling"
-
             [class.rolled]="
-
               !diceRolling &&
-
               displayDice != null
-
             "
-
             [disabled]="
-
               game.status !== 'PLAYING' ||
-
               !isMine() ||
-
               game.dice != null ||
-
               movingToken
-
             "
-
             (click)="roll()"
-
             aria-label="Roll dice"
-
          >
 
-
-
             <span
-
               class="dice-face"
-
               *ngIf="
-
                 displayDice == null
-
               "
-
            >
-
               🎲
-
             </span>
 
-
-
             <span
-
               class="dice-face"
-
               *ngIf="
-
                 diceRolling
-
               "
-
            >
-
               {{ diceFace(displayDice || 1) }}
-
             </span>
-
-
 
             <span
-
               class="dice-face dice-final-number"
-
               *ngIf="
-
                 !diceRolling &&
-
                 displayDice != null
-
               "
-
            >
-
               {{ displayDice }}
-
             </span>
-
-
-
           </button>
-
-
-
         </div>
-
-
-
       </div>
-
-
-
     </div>
-
-
-
 
 
     <!-- TURN / SECONDARY ROLL -->
-
     <div class="controls">
-
-
-
       <div class="turn">
-
         {{ playerStatus() }}
-
       </div>
-
-
-
       <button
-
         class="roll-button"
-
         [disabled]="
-
           game.status !== 'PLAYING' ||
-
           !isMine() ||
-
           game.dice != null ||
-
           movingToken
-
         "
-
         (click)="roll()"
-
      >
-
         🎲 Roll Dice
-
       </button>
-
-
-
     </div>
-
-
 
 
 
     <div
-
       class="game-message"
-
       *ngIf="game.status === 'WAITING'"
-
    >
-
       Waiting for another player...
-
     </div>
-
-
 
     <!-- GRAND WINNER POPUP -->
     <div class="winner-overlay" *ngIf="game.status === 'FINISHED'">
@@ -972,21 +556,10 @@
 
 
     <p
-
       class="error"
-
       *ngIf="error"
-
    >
-
       {{ error }}
-
     </p>
-
-
-
   </section>
-
-
-
 </main>
