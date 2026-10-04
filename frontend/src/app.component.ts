@@ -4,21 +4,16 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import * as Stomp from 'stompjs';
-
 interface TrackCell {
   row: number;
   col: number;
   index: number;
 }
-
-
 interface TokenRef {
   player: any;
   playerIndex: number;
   tokenIndex: number;
 }
-
-
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -26,10 +21,7 @@ interface TokenRef {
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
 })
-
-
 export class AppComponent {
-
   name = 'Player';
   room = '';
   copiedRoom = false;
@@ -37,25 +29,31 @@ export class AppComponent {
   game: any = null;
   client: any = null;
   error = '';
+  // Main application screen. Existing Ludo gameplay logic remains unchanged.
+  screen: 'login' | 'home' | 'lobby' | 'game' = 'login';
+
+  loggedIn = false;
+  loginMode: 'main' | 'mobile' = 'main';
+  mobileNumber = '';
+  otp = '';
+  otpSent = false;
+  authBusy = false;
+  authMessage = '';
+
   diceRolling = false;
   displayDice: number | null = null;
   movingToken = false;
   private moveRequestInProgress = false;
-
   animatedPositions: Record<string, number> = {};
   private diceTimer: any = null;
   private suppressSocketUpdate = false;
   private readonly diceAnimationMs = 1100;
-
   private turnClockTimer: any = null;
-
   private nowMs = Date.now();
   private readonly turnDurationMs = 20_000;
   private readonly maxTimeouts = 5;
   centerFlipKeys: Record<string, boolean> = {};
   private centerFlipTimers: Record<string, any> = {};
-
-
   /*
    * Player slot / board color:
    * 0 RED    -> bottom-left  -> start 39
@@ -63,22 +61,16 @@ export class AppComponent {
    * 2 GREEN  -> top-left     -> start 0
    * 3 BLUE   -> bottom-right  -> start 26
    *
-
-
    * This gives opposite positions to the first two players.
    */
-
   readonly colors = [
     '#ef2b2b',
     '#ffd600',
     '#12b956',
     '#159fe8'
   ];
-
   readonly colorNames = ['red', 'yellow', 'green', 'blue'];
-
  readonly starts = [39, 13, 0, 26];
-
   /* Standard 52-square outer path of a 15 x 15 Ludo board. */
   readonly track: TrackCell[] = [
     { row: 6, col: 1, index: 0 },
@@ -134,8 +126,6 @@ export class AppComponent {
     { row: 7, col: 0, index: 50 },
     { row: 6, col: 0, index: 51 }
   ];
-
-
   /*
    * Relative path used by the game:
    * 0..50  = common track.
@@ -146,42 +136,156 @@ export class AppComponent {
    * a full round. So position 50 goes directly into the finish lane.
    * Conceptually these finish cells are steps 53..57 and the peak is 58.
    */
-
-
-
   readonly finishLanes = [
     [
       { row: 7, col: 1 },
       { row: 7, col: 2 },
       { row: 7, col: 3 },
-      { row: 7, col: 4 }
+      { row: 7, col: 4 },
+      { row: 7, col: 5 }
     ],
-
     [
       { row: 7, col: 13 },
       { row: 7, col: 12 },
       { row: 7, col: 11 },
-      { row: 7, col: 10 }
+      { row: 7, col: 10 },
+      { row: 7, col: 9 }
     ],
-
     [
       { row: 1, col: 7 },
       { row: 2, col: 7 },
       { row: 3, col: 7 },
-      { row: 4, col: 7 }
+      { row: 4, col: 7 },
+      { row: 5, col: 7 }
     ],
-
     [
       { row: 13, col: 7 },
       { row: 12, col: 7 },
       { row: 11, col: 7 },
-      { row: 10, col: 7 }
+      { row: 10, col: 7 },
+      { row: 9, col: 7 }
     ]
-
   ];
+  constructor(private http: HttpClient) {
+    const savedLogin = localStorage.getItem('ludo_logged_in');
+    const savedName = localStorage.getItem('ludo_player_name');
+    if (savedLogin === 'true') {
+      this.loggedIn = true;
+      if (savedName) this.name = savedName;
+      this.screen = 'home';
+    }
+  }
 
-  constructor(private http: HttpClient) {}
+  private finishLogin(playerName: string): void {
+    this.loggedIn = true;
+    this.name = playerName.trim() || 'Player';
+    localStorage.setItem('ludo_logged_in', 'true');
+    localStorage.setItem('ludo_player_name', this.name);
+    this.authBusy = false;
+    this.authMessage = '';
+    this.error = '';
+    this.screen = 'home';
+  }
 
+  continueAsGuest(): void {
+    const guestId = Math.floor(1000 + Math.random() * 9000);
+    this.finishLogin(`Guest ${guestId}`);
+  }
+
+  continueWithGoogle(): void {
+    this.authBusy = true;
+    this.authMessage = '';
+    this.error = '';
+    // Google OAuth needs your Google Client ID and backend token verification.
+    // The login UI is ready; connect this method to your OAuth flow next.
+    setTimeout(() => {
+      this.authBusy = false;
+      this.authMessage = 'Google registration is ready to connect. Add your Google OAuth Client ID and backend verification endpoint.';
+    }, 300);
+  }
+
+  selectMobileLogin(): void {
+    this.loginMode = 'mobile';
+    this.authMessage = '';
+    this.error = '';
+  }
+
+  backToLoginMethods(): void {
+    this.loginMode = 'main';
+    this.otpSent = false;
+    this.otp = '';
+    this.authMessage = '';
+    this.error = '';
+  }
+
+  async sendMobileOtp(): Promise<void> {
+    const digits = this.mobileNumber.replace(/\D/g, '');
+    if (!/^\d{10}$/.test(digits)) {
+      this.error = 'Enter a valid 10-digit mobile number.';
+      return;
+    }
+    this.authBusy = true;
+    this.error = '';
+    this.authMessage = '';
+    try {
+      await firstValueFrom(this.http.post('http://localhost:8080/api/auth/mobile/send-otp', {
+        mobileNumber: digits
+      }));
+      this.otpSent = true;
+      this.authMessage = 'OTP sent to your mobile number.';
+    } catch (e: any) {
+      this.error = e?.error?.message || 'Mobile OTP service is not connected yet.';
+    } finally {
+      this.authBusy = false;
+    }
+  }
+
+  async verifyMobileOtp(): Promise<void> {
+    if (!/^\d{4,6}$/.test(this.otp.trim())) {
+      this.error = 'Enter the OTP you received.';
+      return;
+    }
+    this.authBusy = true;
+    this.error = '';
+    this.authMessage = '';
+    try {
+      const response: any = await firstValueFrom(this.http.post('http://localhost:8080/api/auth/mobile/verify-otp', {
+        mobileNumber: this.mobileNumber.replace(/\D/g, ''),
+        otp: this.otp.trim()
+      }));
+      this.finishLogin(response?.name || `Player ${this.mobileNumber.slice(-4)}`);
+    } catch (e: any) {
+      this.error = e?.error?.message || 'Invalid OTP or mobile authentication failed.';
+      this.authBusy = false;
+    }
+  }
+
+  logout(): void {
+    localStorage.removeItem('ludo_logged_in');
+    localStorage.removeItem('ludo_player_name');
+    this.loggedIn = false;
+    this.game = null;
+    this.screen = 'login';
+    this.error = '';
+    this.authMessage = '';
+  }
+
+  openHome(): void {
+    if (this.game) return;
+    this.error = '';
+    if (!this.loggedIn) {
+      this.screen = 'login';
+      return;
+    }
+    this.screen = 'home';
+  }
+  openLobby(): void {
+    this.error = '';
+    this.screen = 'lobby';
+  }
+  playWithAi(): void {
+    this.error = 'AI mode is coming next. Online multiplayer is ready now.';
+  }
   async create(): Promise<void> {
     try {
       this.error = '';
@@ -193,12 +297,12 @@ export class AppComponent {
       this.game = game;
       this.room = game.roomCode;
       this.myId = game.players[0].id;
+      this.screen = 'game';
       this.connect();
     } catch (e: any) {
       this.error = e?.error?.message || 'Create failed';
     }
   }
-
   async join(): Promise<void> {
     try {
       this.error = '';
@@ -207,7 +311,6 @@ export class AppComponent {
         this.error = 'Enter a room code';
         return;
       }
-
       const game: any = await firstValueFrom(
         this.http.post(
           `http://localhost:8080/api/game/rooms/${code}/join`,
@@ -217,21 +320,19 @@ export class AppComponent {
           }
         )
       );
-
       this.game = game;
       this.room = game.roomCode;
+      this.screen = 'game';
       this.connect();
     } catch (e: any) {
       this.error = e?.error?.message || 'Join failed';
     }
   }
-
   connect(): void {
     if (this.client?.connected) return;
     this.client = Stomp.over(
       new WebSocket('ws://localhost:8080/ws')
     );
-
     this.client.debug = () => {};
     this.client.connect(
       {},
@@ -239,16 +340,13 @@ export class AppComponent {
 this.client.subscribe(
   `/topic/room/${this.game.roomCode}`,
   async (message: any) => {
-
   if (this.suppressSocketUpdate) {
     return;
   }
-
   try {
     const before = this.game
       ? JSON.parse(JSON.stringify(this.game))
       : null;
-
     const result = JSON.parse(message.body);
     if (!before) {
       this.game = result;
@@ -256,7 +354,6 @@ this.client.subscribe(
       this.error = '';
       return;
     }
-
     /*
      * First show the dice animation.
      */
@@ -265,14 +362,11 @@ this.client.subscribe(
       Number.isInteger(result.lastDice) &&
       result.lastDice >= 1 &&
       result.lastDice <= 6;
-
     if (isRemoteRoll) {
-
       await this.animateRemoteDice(
         Number(result.lastDice)
       );
     }
-
     /*
      * THEN animate the token.
      */
@@ -280,28 +374,19 @@ this.client.subscribe(
       before,
       result
     );
-
     this.error = '';
-
   } catch {
-
     this.error =
       'Invalid game update received';
-
   }
-
 }
 );
-
       },
-
       () => {
         this.error = 'WebSocket connection failed';
       }
     );
   }
-
-
   async roll(): Promise<void> {
     if (
       !this.game ||
@@ -312,138 +397,106 @@ this.client.subscribe(
     ) {
       return;
     }
-
-
     const before = JSON.parse(JSON.stringify(this.game));
     const playerIndex = before.currentPlayer;
-
     try {
       this.error = '';
       this.diceRolling = true;
       this.suppressSocketUpdate = true;
       this.displayDice = null;
-
       if (this.diceTimer) clearInterval(this.diceTimer);
       this.diceTimer = setInterval(() => {
         this.displayDice = Math.floor(Math.random() * 6) + 1;
       }, 75);
-
-
       const result: any = await firstValueFrom(
         this.http.post(
-          `http\://localhost:8080/api/game/rooms/${this.room}/roll?playerId=${this.myId}`,
+          `http://localhost:8080/api/game/rooms/${this.room}/roll?playerId=${this.myId}`,
           {}
         )
       );
-
-
       if (this.diceTimer) {
         clearInterval(this.diceTimer);
         this.diceTimer = null;
       }
-
-
       const rolled = this.resolveRolledDice(before, result, playerIndex);
       this.displayDice = rolled;
-
       const beforePlayer = before.players?.[playerIndex];
       const afterPlayer = result.players?.[playerIndex];
       const visualGame = JSON.parse(JSON.stringify(result));
-
       if (beforePlayer && afterPlayer) {
         const changedToken = beforePlayer.tokens.findIndex(
           (value: number, i: number) =>
             value !== afterPlayer.tokens?.[i]
         );
-
-
         if (changedToken >= 0) {
           visualGame.players[playerIndex].tokens[changedToken] =
             beforePlayer.tokens[changedToken];
         }
       }
-
-
       this.prepareKilledTokensForVisualState(
         before,
         visualGame,
         playerIndex
       );
-
       this.game = visualGame;
       await this.sleep(this.diceAnimationMs);
       this.diceRolling = false;
-
       if (beforePlayer && afterPlayer) {
         const changedToken = beforePlayer.tokens.findIndex(
           (value: number, i: number) =>
             value !== afterPlayer.tokens?.[i]
         );
-
         if (changedToken >= 0) {
           const from = beforePlayer.tokens[changedToken];
           const to = afterPlayer.tokens[changedToken];
-
           this.movingToken = true;
           this.animatedPositions[`${playerIndex}-${changedToken}`] = from;
-
           await this.animateTokenMovement(
             playerIndex,
             changedToken,
             from,
             to
           );
-
           this.clearAnimatedPosition(
             playerIndex,
             changedToken
           );
-
           await this.animateKilledTokens(
             before,
             result,
             playerIndex,
             changedToken
           );
-
           this.detectFinishedTokens(before, result);
           this.game = result;
-
           this.movingToken = false;
-
         } else {
           this.game = result;
         }
       } else {
         this.game = result;
       }
-
-
     } catch (e: any) {
       if (this.diceTimer) {
         clearInterval(this.diceTimer);
         this.diceTimer = null;
       }
-
       this.diceRolling = false;
       this.movingToken = false;
       this.displayDice = null;
       this.error = e?.error?.message || 'Roll failed';
     } finally {
       this.suppressSocketUpdate = false;
-
       if (this.diceTimer) {
         clearInterval(this.diceTimer);
         this.diceTimer = null;
       }
     }
   }
-
   async move(
   tokenIndex: number,
   playerIndex?: number
 ): Promise<void> {
-
   if (
     !this.game ||
     !this.isMine() ||
@@ -451,10 +504,8 @@ this.client.subscribe(
   ) {
     return;
   }
-
   const currentPlayerIndex =
     this.game.currentPlayer;
-
   /*
    * Always use the current player.
    * The playerIndex passed from the clicked
@@ -467,7 +518,6 @@ this.client.subscribe(
   ) {
     return;
   }
-
   /*
    * Validate only after receiving the click.
    * Do not disable the HTML button.
@@ -475,21 +525,15 @@ this.client.subscribe(
   if (!this.canMove(tokenIndex, currentPlayerIndex)) {
     return;
   }
-
   const before =
     JSON.parse(JSON.stringify(this.game));
-
   const oldPosition =
     before.players?.[currentPlayerIndex]
       ?.tokens?.[tokenIndex];
-
   try {
-
     this.error = '';
-
     this.movingToken = true;
     this.suppressSocketUpdate = true;
-
     const result: any =
       await firstValueFrom(
         this.http.post(
@@ -497,11 +541,9 @@ this.client.subscribe(
           {}
         )
       );
-
     const newPosition =
       result?.players?.[currentPlayerIndex]
         ?.tokens?.[tokenIndex];
-
     /*
      * Keep the token visually at its old
      * position while the movement animation
@@ -511,10 +553,8 @@ this.client.subscribe(
       before,
       result
     );
-
     const visualGame =
       JSON.parse(JSON.stringify(result));
-
     if (
       visualGame?.players?.[currentPlayerIndex] &&
       typeof oldPosition === 'number'
@@ -523,32 +563,25 @@ this.client.subscribe(
         currentPlayerIndex
       ].tokens[tokenIndex] = oldPosition;
     }
-
     this.game = visualGame;
-
     if (
       typeof oldPosition === 'number' &&
       typeof newPosition === 'number'
     ) {
-
       const key =
         `${currentPlayerIndex}-${tokenIndex}`;
-
       this.animatedPositions[key] =
         oldPosition;
-
       await this.animateTokenMovement(
         currentPlayerIndex,
         tokenIndex,
         oldPosition,
         newPosition
       );
-
       this.clearAnimatedPosition(
         currentPlayerIndex,
         tokenIndex
       );
-
       await this.animateKilledTokens(
         before,
         result,
@@ -556,17 +589,14 @@ this.client.subscribe(
         tokenIndex
       );
     }
-
     this.detectFinishedTokens(
   before,
   result
 );
-
 /*
  * Finally use the real backend state.
  */
 this.game = result;
-
 /*
  * Backend may have started a fresh turn
  * after a six or a kill.
@@ -576,35 +606,28 @@ this.game = result;
  */
 this.startTurnClock();
   } catch (e: any) {
-
     this.error =
       e?.error?.message || 'Move failed';
-
   } finally {
   this.movingToken = false;
   this.moveRequestInProgress = false;
   this.suppressSocketUpdate = false;
 }
 }
-
-
   private prepareKilledTokensForVisualState(
     before: any,
     visualGame: any,
     moverPlayerIndex: number
   ): void {
     if (!before?.players || !visualGame?.players) return;
-
     for (let pi = 0; pi < before.players.length; pi++) {
       if (pi === moverPlayerIndex) continue;
       const beforePlayer = before.players[pi];
       const afterPlayer = visualGame.players[pi];
-
       if (!beforePlayer || !afterPlayer) continue;
       for (let ti = 0; ti < 4; ti++) {
         const from = beforePlayer.tokens?.[ti];
         const to = afterPlayer.tokens?.[ti];
-
         if (
           typeof from === 'number' &&
           from >= 0 &&
@@ -616,24 +639,18 @@ this.startTurnClock();
       }
     }
   }
-
-
   private prepareKilledTokensForAnimation(
     before: any,
     result: any
   ): void {
     if (!before?.players || !result?.players) return;
-
     for (let pi = 0; pi < before.players.length; pi++) {
       const beforePlayer = before.players[pi];
       const afterPlayer = result.players[pi];
-
       if (!beforePlayer || !afterPlayer) continue;
-
       for (let ti = 0; ti < 4; ti++) {
         const from = beforePlayer.tokens?.[ti];
         const to = afterPlayer.tokens?.[ti];
-
         if (
           typeof from === 'number' &&
           from >= 0 &&
@@ -645,29 +662,20 @@ this.startTurnClock();
       }
     }
   }
-
-
   getTurnSeconds(): number {
     if (!this.game || this.game.status !== 'PLAYING') return 0;
-
     const started = Number(this.game.turnStartedAt || 0);
     if (!started) return 20;
-
     const remaining =
       this.turnDurationMs - (this.nowMs - started);
-
     return Math.max(0, Math.ceil(remaining / 1000));
   }
-
   getTimeoutCount(playerIndex: number): number {
     const value = Number(
       this.game?.players?.[playerIndex]?.turnTimeouts || 0
     );
-
     return Math.min(this.maxTimeouts, Math.max(0, value));
   }
-
-
   isCurrentPlayer(playerIndex: number): boolean {
     return !!(
       this.game &&
@@ -675,15 +683,12 @@ this.startTurnClock();
       this.game.currentPlayer === playerIndex
     );
   }
-
   getTurnTimerClass(): string {
     const seconds = this.getTurnSeconds();
-
     if (seconds <= 5) return 'danger';
     if (seconds <= 10) return 'warning';
     return 'normal';
   }
-
   getTurnProgress(): number {
     return Math.max(
       0,
@@ -693,25 +698,18 @@ this.startTurnClock();
       )
     );
   }
-
-
   private startTurnClock(): void {
     if (this.turnClockTimer) {
       clearInterval(this.turnClockTimer);
     }
-
     this.nowMs = Date.now();
-
     this.turnClockTimer = setInterval(() => {
       this.nowMs = Date.now();
     }, 250);
   }
-
-
   isMine(): boolean {
     const currentPlayer =
       this.game?.players?.[this.game.currentPlayer];
-
     return !!(
       this.game?.status === 'PLAYING' &&
       currentPlayer &&
@@ -719,33 +717,24 @@ this.startTurnClock();
       !currentPlayer.defeated
     );
   }
-
   canMove(tokenIndex: number, playerIndex?: number): boolean {
     if (!this.game || this.game.dice == null || !this.isMine()) {
       return false;
     }
-
     const currentPlayer = this.game.currentPlayer;
     const targetPlayer = playerIndex ?? currentPlayer;
-
     if (targetPlayer !== currentPlayer) return false;
-
     const player = this.game.players?.[targetPlayer];
     if (!player || player.defeated) return false;
-
     const position = player.tokens?.[tokenIndex];
     const dice = this.game.dice;
-
     if (position === 56) return false;
     if (position < 0) return dice === 6;
-
     return position + dice <= 56;
   }
-
   centerFinishedTokens(): TokenRef[] {
     const result: TokenRef[] = [];
     if (!this.game?.players) return result;
-
     this.game.players.forEach((player: any, playerIndex: number) => {
       (player.tokens || []).forEach((position: number, tokenIndex: number) => {
         if (position === 56) {
@@ -753,26 +742,20 @@ this.startTurnClock();
         }
       });
     });
-
     return result;
   }
-
   centerCoinClass(playerIndex: number, tokenIndex: number): string {
     return this.centerFlipKeys[`${playerIndex}-${tokenIndex}`] ? 'flip-once' : '';
   }
-
   trackCenterToken(index: number, token: TokenRef): string {
     return `${token.playerIndex}-${token.tokenIndex}`;
   }
-
   private detectFinishedTokens(before: any, after: any): void {
     if (!before?.players || !after?.players) return;
-
     for (let pi = 0; pi < after.players.length; pi++) {
       const beforePlayer = before.players?.[pi];
       const afterPlayer = after.players?.[pi];
       if (!beforePlayer || !afterPlayer) continue;
-
       for (let ti = 0; ti < 4; ti++) {
         const from = beforePlayer.tokens?.[ti];
         const to = afterPlayer.tokens?.[ti];
@@ -782,86 +765,66 @@ this.startTurnClock();
       }
     }
   }
-
   private playCenterFlip(playerIndex: number, tokenIndex: number): void {
     const key = `${playerIndex}-${tokenIndex}`;
-
     if (this.centerFlipTimers[key]) {
       clearTimeout(this.centerFlipTimers[key]);
     }
-
     this.centerFlipKeys[key] = false;
-
     setTimeout(() => {
       this.centerFlipKeys[key] = true;
-
       this.centerFlipTimers[key] = setTimeout(() => {
         this.centerFlipKeys[key] = false;
         delete this.centerFlipTimers[key];
       }, 850);
     }, 0);
   }
-
   getMatchDurationText(): string {
     if (!this.game) return '00:00';
-
     const duration = Number(this.game.matchDurationMs || 0);
     const started = Number(this.game.matchStartedAt || 0);
     const elapsed = duration > 0
       ? duration
       : (started > 0 ? Math.max(0, Date.now() - started) : 0);
-
     const totalSeconds = Math.floor(elapsed / 1000);
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
-
     if (hours > 0) {
       return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
     }
-
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }
-
   getWinnerName(): string {
     const winnerIndex = Number(this.game?.winner);
     return this.game?.players?.[winnerIndex]?.name || 'Winner';
   }
-
   getMostKills(): number {
     return (this.game?.players || []).reduce(
       (max: number, player: any) => Math.max(max, Number(player.kills || 0)),
       0
     );
   }
-
   getMostKillerNames(): string {
     const players = this.game?.players || [];
     const maxKills = this.getMostKills();
     if (!players.length || maxKills <= 0) return 'No coins were killed';
-
     return players
       .filter((player: any) => Number(player.kills || 0) === maxKills)
       .map((player: any) => player.name)
       .join(', ');
   }
-
   getMostKillerLabel(): string {
     const maxKills = this.getMostKills();
     if (maxKills <= 0) return 'No coin kills';
     return `${this.getMostKillerNames()} — ${maxKills} coin${maxKills === 1 ? '' : 's'} killed`;
   }
-
   getPlayerColor(playerIndex: number): string {
-
     return this.colors[playerIndex] || '#777';
   }
-
-
   getPlayerColorName(playerIndex: number): string {
     return this.colorNames[playerIndex] || 'red';
   }
-
   getHomeClass(playerIndex: number): string {
     return [
       'red-home',
@@ -870,22 +833,18 @@ this.startTurnClock();
       'blue-home'
     ][playerIndex] || 'red-home';
   }
-
   getFinishLaneIndex(playerIndex: number): number {
     return [3, 2, 0, 1][playerIndex] ?? 0;
   }
-
   getFinishedClass(playerIndex: number): string {
     return `${this.getPlayerColorName(playerIndex)}-finished`;
   }
-
   getControlPlayerIndex(): number {
     const index = this.game?.players?.findIndex(
       (p: any) => p.id === this.myId
     );
     return index>= 0 ? index : 0;
   }
-
   getOpponentControlIndex(): number {
     const me = this.getControlPlayerIndex();
     const players = this.game?.players || [];
@@ -895,26 +854,20 @@ this.startTurnClock();
     );
     return opponent>= 0 ? opponent : me;
   }
-
   homeTokenVisible(playerIndex: number, tokenIndex: number): boolean {
     const key = `${playerIndex}-${tokenIndex}`;
-
     /* Keep a killed token out of home while it animates backwards. */
     if (this.animatedPositions[key] !== undefined) {
       return false;
     }
-
     const player = this.game?.players?.[playerIndex];
-
     return !!(
       player &&
       !player.defeated &&
       player.tokens[tokenIndex] < 0
     );
   }
-
   trackTokens(trackIndex: number): TokenRef[] {
-
     const result: TokenRef[] = [];
     if (!this.game?.players) return result;
     this.game.players.forEach(
@@ -929,7 +882,6 @@ this.startTurnClock();
             if (position < 0 || position > 50) return;
             const actualTrackPosition =
               (this.starts[playerIndex] + position) % 52;
-
             if (actualTrackPosition === trackIndex) {
               result.push({
                 player,
@@ -943,12 +895,9 @@ this.startTurnClock();
     );
     return result;
   }
-
   finishTokens(playerIndex: number, laneIndex: number): TokenRef[] {
-
     const result: TokenRef[] = [];
     const player = this.game?.players?.[playerIndex];
-
     if (!player) return result;
     player.tokens.forEach(
       (backendPosition: number, tokenIndex: number) => {
@@ -957,7 +906,6 @@ this.startTurnClock();
         const position = animated !== undefined
           ? animated
           : backendPosition;
-
         if (position === 51 + laneIndex) {
           result.push({
             player,
@@ -967,70 +915,51 @@ this.startTurnClock();
         }
       }
     );
-
     return result;
   }
-
-
-
   finishedTokens(playerIndex: number): number {
     const player = this.game?.players?.[playerIndex];
     if (!player) return 0;
     return player.tokens.filter(
       (position: number, tokenIndex: number) => {
         const key = `${playerIndex}-${tokenIndex}`;
-
         const animated = this.animatedPositions[key];
         const visual = animated !== undefined ? animated : position;
         return visual === 56;
       }
     ).length;
-
   }
-
-
   tokenClass(playerIndex: number, tokenIndex: number): string {
     const classes = [
       'token',
       this.getPlayerColorName(playerIndex)
     ];
-
     if (
       this.game?.currentPlayer === playerIndex &&
       this.canMove(tokenIndex, playerIndex)
     ) {
       classes.push('movable');
     }
-
     return classes.join(' ');
   }
-
-
   getStackTransform(count: number, index: number): string {
     if (count <= 1) {
       return 'translate(-50%, -50%)';
     }
-
     const positions = [
       'translate(calc(-50% - 5px), calc(-50% - 5px))',
       'translate(calc(-50% + 5px), calc(-50% + 5px))',
       'translate(calc(-50% + 5px), calc(-50% - 5px))',
       'translate(calc(-50% - 5px), calc(-50% + 5px))'
     ];
-
     return positions[index] || 'translate(-50%, -50%)';
   }
-
   isStartPosition(index: number): boolean {
     return [0, 13, 26, 39].includes(index);
   }
-
-
   isSafePosition(index: number): boolean {
     return [8, 21, 34, 47].includes(index);
   }
-
-
   startArrow(index: number): string {
     switch (index) {
       case 0: return '→';
@@ -1040,35 +969,26 @@ this.startTurnClock();
       default: return '';
     }
   }
-
   playerStatus(): string {
     if (!this.game) return '';
-
     const me = this.game.players?.find(
       (p: any) => p.id === this.myId
     );
-
     if (me?.defeated) {
       return '☠️ You are defeated';
     }
-
     if (this.game.status === 'WAITING') {
       return '⏳ Waiting for another player';
     }
-
     if (this.game.status === 'FINISHED') {
       return `🏆 ${this.game.players?.[this.game.winner]?.name || ''} wins!`;
     }
-
     if (this.isMine()) return '🎯 Your turn';
-
     return `⏳ ${this.game.players?.[this.game.currentPlayer]?.name || ''}'s turn`;
   }
-
   async copyRoomCode(): Promise<void> {
     const code = this.game?.roomCode || this.room;
     if (!code) return;
-
     try {
       await navigator.clipboard.writeText(code);
       this.copiedRoom = true;
@@ -1079,7 +999,6 @@ this.startTurnClock();
       textArea.style.opacity = '0';
       document.body.appendChild(textArea);
       textArea.select();
-
       try {
         document.execCommand('copy');
         this.copiedRoom = true;
@@ -1087,12 +1006,10 @@ this.startTurnClock();
         document.body.removeChild(textArea);
       }
     }
-
     setTimeout(() => {
       this.copiedRoom = false;
     }, 1500);
   }
-
   returnToCreateRoom(): void {
     this.error = '';
     this.diceRolling = false;
@@ -1100,30 +1017,25 @@ this.startTurnClock();
     this.displayDice = null;
     this.animatedPositions = {};
     this.centerFlipKeys = {};
-
     if (this.diceTimer) {
       clearInterval(this.diceTimer);
       this.diceTimer = null;
     }
-
     if (this.turnClockTimer) {
       clearInterval(this.turnClockTimer);
       this.turnClockTimer = null;
     }
-
     if (this.client?.connected) {
       this.client.disconnect();
     }
-
     this.client = null;
     this.game = null;
     this.room = '';
     this.copiedRoom = false;
+    this.screen = 'lobby';
     this.myId = crypto.randomUUID();
   }
-
   diceFace(value: number | null): string {
-
     switch (value) {
       case 1: return '⚀';
       case 2: return '⚁';
@@ -1134,62 +1046,48 @@ this.startTurnClock();
       default: return '🎲';
     }
   }
-
   getStartPosition(playerIndex: number): number {
   return this.starts[playerIndex] ?? 0;
 }
-
-
   private resolveRolledDice(before: any, result: any, playerIndex: number): number {
     if (typeof result?.lastDice === 'number') {
       return result.lastDice;
     }
-
     if (typeof result?.dice === 'number') {
       return result.dice;
     }
-
-
     const beforePlayer = before?.players?.[playerIndex];
     const afterPlayer = result?.players?.[playerIndex];
     if (!beforePlayer || !afterPlayer) {
       return this.displayDice ?? 1;
     }
-
     const changedToken = beforePlayer.tokens.findIndex(
       (value: number, i: number) => value !== afterPlayer.tokens?.[i]
     );
-
     if (changedToken < 0) {
       return this.displayDice ?? 1;
     }
-
     const from = beforePlayer.tokens[changedToken];
     const to = afterPlayer.tokens[changedToken];
     // Home -> start can only happen with a six.
     if (from < 0 && to === 0) return 6;
     return Math.abs(to - from);
   }
-
-
 private async animateRemoteGameUpdate(
   before: any,
   result: any
 ): Promise<void> {
-
   if (!before?.players || !result?.players) {
     this.game = result;
     this.startTurnClock();
     return;
   }
-
   const changedTokens: Array<{
     playerIndex: number;
     tokenIndex: number;
     from: number;
     to: number;
   }> = [];
-
   /*
    * Find every token whose backend position changed.
    */
@@ -1198,37 +1096,28 @@ private async animateRemoteGameUpdate(
     pi < result.players.length;
     pi++
   ) {
-
     const beforePlayer = before.players?.[pi];
     const afterPlayer = result.players?.[pi];
-
     if (!beforePlayer || !afterPlayer) {
       continue;
     }
-
     for (let ti = 0; ti < 4; ti++) {
-
       const from = beforePlayer.tokens?.[ti];
       const to = afterPlayer.tokens?.[ti];
-
       if (
         typeof from === 'number' &&
         typeof to === 'number' &&
         from !== to
       ) {
-
         changedTokens.push({
           playerIndex: pi,
           tokenIndex: ti,
           from,
           to
         });
-
       }
-
     }
   }
-
   /*
    * If there is no token movement, just update
    * the game normally.
@@ -1239,13 +1128,10 @@ private async animateRemoteGameUpdate(
    * - timer update
    */
   if (changedTokens.length === 0) {
-
     this.game = result;
     this.startTurnClock();
-
     return;
   }
-
   /*
    * Keep all changed tokens at their OLD positions.
    * This prevents the remote screen from jumping
@@ -1254,29 +1140,22 @@ private async animateRemoteGameUpdate(
   const visualGame = JSON.parse(
     JSON.stringify(result)
   );
-
   for (const change of changedTokens) {
-
     if (
       visualGame.players?.[change.playerIndex]
     ) {
-
       visualGame.players[
         change.playerIndex
       ].tokens[
         change.tokenIndex
       ] = change.from;
-
     }
   }
-
   this.game = visualGame;
-
   /*
    * Keep the timer synchronized with backend.
    */
   this.startTurnClock();
-
   /*
    * IMPORTANT:
    *
@@ -1289,12 +1168,10 @@ private async animateRemoteGameUpdate(
    * RIGHT -> dice still rolling
    */
   await this.sleep(this.diceAnimationMs);
-
   /*
    * Animate normal token movement.
    */
   for (const change of changedTokens) {
-
     /*
      * Killed tokens are handled separately below.
      */
@@ -1305,7 +1182,6 @@ private async animateRemoteGameUpdate(
     ) {
       continue;
     }
-
     /*
      * Home -> starting square.
      */
@@ -1313,26 +1189,21 @@ private async animateRemoteGameUpdate(
       change.from < 0 &&
       change.to === 0
     ) {
-
       this.animatedPositions[
         `${change.playerIndex}-${change.tokenIndex}`
       ] = change.from;
-
       await this.animateTokenMovement(
         change.playerIndex,
         change.tokenIndex,
         change.from,
         change.to
       );
-
       this.clearAnimatedPosition(
         change.playerIndex,
         change.tokenIndex
       );
-
       continue;
     }
-
     /*
      * Normal board / finish movement.
      */
@@ -1340,25 +1211,21 @@ private async animateRemoteGameUpdate(
       change.from >= 0 &&
       change.to >= 0
     ) {
-
       this.animatedPositions[
         `${change.playerIndex}-${change.tokenIndex}`
       ] = change.from;
-
       await this.animateTokenMovement(
         change.playerIndex,
         change.tokenIndex,
         change.from,
         change.to
       );
-
       this.clearAnimatedPosition(
         change.playerIndex,
         change.tokenIndex
       );
     }
   }
-
   /*
    * Animate killed coins backwards to HOME.
    */
@@ -1368,7 +1235,6 @@ private async animateRemoteGameUpdate(
     result.currentPlayer,
     -1
   );
-
   /*
    * Trigger centre/finish animation.
    */
@@ -1376,12 +1242,10 @@ private async animateRemoteGameUpdate(
     before,
     result
   );
-
   /*
    * Finally apply the real backend state.
    */
   this.game = result;
-
   /*
    * Restart/update the timer using the new
    * turnStartedAt value.
@@ -1394,9 +1258,7 @@ private async animateRemoteGameUpdate(
     moverPlayerIndex: number,
     moverTokenIndex: number
   ): Promise<void> {
-
     if (!before?.players || !result?.players) return;
-
     for (let pi = 0; pi < before.players.length; pi++) {
       if (pi === moverPlayerIndex) continue;
       const beforePlayer = before.players[pi];
@@ -1405,9 +1267,7 @@ private async animateRemoteGameUpdate(
       for (let ti = 0; ti < 4; ti++) {
         const from = beforePlayer.tokens?.[ti];
         const to = afterPlayer.tokens?.[ti];
-
         // A killed token changes from a board position to home (-1).
-
         if (
           typeof from === 'number' &&
           from>= 0 &&
@@ -1415,12 +1275,9 @@ private async animateRemoteGameUpdate(
           to === -1
         ) {
           const key = `${pi}-${ti}`;
-
           // Keep it visible at the killed square even though backend already
           // moved it to home. Then walk it backwards to relative position 0.
-
           this.animatedPositions[key] = from;
-
           for (let position = from - 1; position>= 0; position--) {
             await this.sleep(105);
             this.animatedPositions[key] = position;
@@ -1431,23 +1288,18 @@ private async animateRemoteGameUpdate(
       }
     }
   }
-
   private clearAnimatedPosition(
     playerIndex: number,
     tokenIndex: number
   ): void {
     delete this.animatedPositions[`${playerIndex}-${tokenIndex}`];
   }
-
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
-
-
 private async animateRemoteDice(
   finalDice: number
 ): Promise<void> {
-
   if (
     !Number.isInteger(finalDice) ||
     finalDice < 1 ||
@@ -1455,37 +1307,27 @@ private async animateRemoteDice(
   ) {
     return;
   }
-
   /*
    * Start the same dice animation used
    * by the player who rolled.
    */
   this.diceRolling = true;
-
   if (this.diceTimer) {
     clearInterval(this.diceTimer);
   }
-
   this.diceTimer = setInterval(() => {
-
     this.displayDice =
       Math.floor(Math.random() * 6) + 1;
-
   }, 75);
-
   /*
    * Give both browsers approximately the
    * same animation duration.
    */
   await this.sleep(this.diceAnimationMs);
-
   if (this.diceTimer) {
-
     clearInterval(this.diceTimer);
     this.diceTimer = null;
-
   }
-
   /*
    * IMPORTANT:
    *
@@ -1493,13 +1335,8 @@ private async animateRemoteDice(
    * Use the value received from backend.
    */
   this.displayDice = finalDice;
-
   this.diceRolling = false;
 }
-
-
-
-
   private async animateTokenMovement(
     playerIndex: number,
     tokenIndex: number,
@@ -1507,20 +1344,17 @@ private async animateRemoteDice(
     to: number
   ): Promise<void> {
     const key = `${playerIndex}-${tokenIndex}`;
-
     /* Home -> starting square. A six puts it directly on start. */
     if (from < 0) {
       this.animatedPositions[key] = 0;
       await this.sleep(350);
       return;
     }
-
     if (to === from) {
       this.animatedPositions[key] = to;
       await this.sleep(120);
       return;
     }
-
     /* Normally positions only increase. This also safely handles a
        visual wrap from 51 -> 0 if an older server state is received. */
     if (to > from) {
@@ -1530,7 +1364,6 @@ private async animateRemoteDice(
       }
       return;
     }
-
     this.animatedPositions[key] = from;
     for (let position = from + 1; position <= 51; position++) {
       this.animatedPositions[key] = position;
@@ -1541,19 +1374,15 @@ private async animateRemoteDice(
       await this.sleep(150);
     }
   }
-
-
   ngOnDestroy(): void {
     if (this.diceTimer) {
       clearInterval(this.diceTimer);
       this.diceTimer = null;
     }
-
     if (this.turnClockTimer) {
       clearInterval(this.turnClockTimer);
       this.turnClockTimer = null;
     }
-
     if (this.client?.connected) {
       this.client.disconnect();
     }

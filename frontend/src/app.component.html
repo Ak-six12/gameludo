@@ -1,7 +1,118 @@
 <main class="app">
+<section *ngIf="screen === 'login' && !game" class="login-screen">
+  <div class="login-backdrop login-glow-one"></div>
+  <div class="login-backdrop login-glow-two"></div>
+
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-dice">🎲</div>
+      <div>
+        <span>LUDO ONLINE</span>
+        <strong>PLAY. ROLL. WIN.</strong>
+      </div>
+    </div>
+
+    <div class="login-heading" *ngIf="loginMode === 'main'">
+      <h1>Welcome back!</h1>
+      <p>Sign in to save your profile, stats and progress.</p>
+    </div>
+
+    <div class="login-heading" *ngIf="loginMode === 'mobile'">
+      <button type="button" class="login-back" (click)="backToLoginMethods()">← Back</button>
+      <h1>Mobile login</h1>
+      <p>Use your mobile number to continue.</p>
+    </div>
+
+    <ng-container *ngIf="loginMode === 'main'">
+      <button type="button" class="google-login-button" [disabled]="authBusy" (click)="continueWithGoogle()">
+        <span class="google-mark">G</span>
+        <span>Continue with Google</span>
+      </button>
+
+      <div class="login-divider"><span></span><b>OR</b><span></span></div>
+
+      <button type="button" class="mobile-login-button" [disabled]="authBusy" (click)="selectMobileLogin()">
+        <span class="mobile-icon">📱</span>
+        <span>
+          <strong>Continue with Mobile</strong>
+          <small>OTP verification</small>
+        </span>
+        <b>›</b>
+      </button>
+
+      <button type="button" class="guest-login-button" [disabled]="authBusy" (click)="continueAsGuest()">
+        <span>👤</span>
+        <span>Play as Guest</span>
+      </button>
+    </ng-container>
+
+    <ng-container *ngIf="loginMode === 'mobile'">
+      <label class="login-label">
+        Mobile number
+        <div class="mobile-input-wrap">
+          <span>+91</span>
+          <input
+            type="tel"
+            [(ngModel)]="mobileNumber"
+            maxlength="10"
+            inputmode="numeric"
+            placeholder="Enter 10-digit number"
+            [disabled]="otpSent || authBusy"
+          />
+        </div>
+      </label>
+
+      <button
+        *ngIf="!otpSent"
+        type="button"
+        class="login-primary-button"
+        [disabled]="authBusy"
+        (click)="sendMobileOtp()"
+      >
+        {{ authBusy ? 'Sending OTP...' : 'Send OTP' }}
+      </button>
+
+      <ng-container *ngIf="otpSent">
+        <label class="login-label">
+          Enter OTP
+          <input
+            class="otp-input"
+            type="text"
+            [(ngModel)]="otp"
+            maxlength="6"
+            inputmode="numeric"
+            placeholder="Enter OTP"
+            [disabled]="authBusy"
+          />
+        </label>
+
+        <button
+          type="button"
+          class="login-primary-button"
+          [disabled]="authBusy"
+          (click)="verifyMobileOtp()"
+        >
+          {{ authBusy ? 'Verifying...' : 'Verify & Continue' }}
+        </button>
+
+        <button type="button" class="resend-button" [disabled]="authBusy" (click)="sendMobileOtp()">
+          Resend OTP
+        </button>
+      </ng-container>
+    </ng-container>
+
+    <p class="login-message" *ngIf="authMessage">{{ authMessage }}</p>
+    <p class="login-error" *ngIf="error">{{ error }}</p>
+
+    <div class="login-footer">
+      <span>🔒</span>
+      <span>Your account helps keep your games and profile connected.</span>
+    </div>
+  </div>
+</section>
 
   <!-- HEADER -->
-  <section class="top">
+  <section class="top" *ngIf="game">
     <div>
       <h1>🎲 Ludo Online</h1>
       <div class="room-info" *ngIf="game">
@@ -16,16 +127,86 @@
         </button>
       </div>
     </div>
-
     <div class="connection" *ngIf="game">
       ● Online
     </div>
   </section>
-
-
-
   <!-- LOBBY -->
-  <section *ngIf="!game" class="card lobby">
+  <!-- HOME SCREEN -->
+  <section *ngIf="screen === 'home' && !game" class="home-screen">
+    <div class="home-topbar">
+      <div class="home-brand">
+        <div class="home-logo-dice">🎲</div>
+        <div>
+          <span class="home-eyebrow">WELCOME TO</span>
+          <h1>GAME <span>LUDO</span></h1>
+        </div>
+      </div>
+      <div class="home-wallet">
+        <img class="coin-icon" src="assets/ludo-coin.png" alt="Ludo Coin" />
+        <strong>1,250</strong>
+        <button type="button" aria-label="Settings" class="icon-button">⚙️</button>
+        <button type="button" aria-label="Logout" class="icon-button logout-icon" (click)="logout()">↪</button>
+      </div>
+    </div>
+    <div class="home-hero">
+      <div class="hero-glow glow-green"></div>
+      <div class="hero-glow glow-blue"></div>
+      <div class="hero-copy">
+        <span class="hero-kicker">YOUR NEXT ADVENTURE</span>
+        <h2>Roll. Move.<br><span>Conquer.</span></h2>
+        <p>Challenge friends, build your strategy and become the champion of the board.</p>
+        <button type="button" class="play-main-button" (click)="openLobby()">
+          <span class="play-icon">▶</span>
+          <span>PLAY ONLINE</span>
+          <small>Play with friends</small>
+        </button>
+      </div>
+      <div class="hero-board-art" aria-hidden="true">
+        <div class="floating-token token-red"></div>
+        <div class="floating-token token-yellow"></div>
+        <div class="floating-token token-green"></div>
+        <div class="floating-token token-blue"></div>
+        <div class="mini-board-art">
+          <div class="mini-home mini-green"></div>
+          <div class="mini-home mini-yellow"></div>
+          <div class="mini-home mini-red"></div>
+          <div class="mini-home mini-blue"></div>
+          <div class="mini-center">🎲</div>
+        </div>
+        <div class="hero-character-card green-character">
+          <div class="character-art">🦖</div>
+          <span>GREEN GUARDIAN</span>
+        </div>
+        <div class="hero-character-card blue-character">
+          <div class="character-art">🦕</div>
+          <span>BLUE GUARDIAN</span>
+        </div>
+      </div>
+    </div>
+    <div class="home-actions">
+      <button type="button" class="action-card" (click)="playWithAi()">
+        <span class="action-icon ai-icon">🤖</span>
+        <span><strong>PLAY WITH AI</strong><small>Practice your strategy</small></span>
+        <b>›</b>
+      </button>
+      <button type="button" class="action-card" (click)="openLobby()">
+        <span class="action-icon room-icon">＋</span>
+        <span><strong>CREATE / JOIN ROOM</strong><small>Play with your friends</small></span>
+        <b>›</b>
+      </button>
+    </div>
+    <div class="home-bottom">
+      <button type="button" class="bottom-tile">🎁<strong>EVENTS</strong><small>Coming soon</small></button>
+      <button type="button" class="bottom-tile">🏆<strong>LEADERBOARD</strong><small>Top players</small></button>
+      <button type="button" class="bottom-tile">👤<strong>PROFILE</strong><small>{{ name }}</small></button>
+      <button type="button" class="bottom-tile">⚙️<strong>SETTINGS</strong><small>Game settings</small></button>
+    </div>
+    <p class="home-error" *ngIf="error">{{ error }}</p>
+  </section>
+  <!-- LOBBY -->
+  <section *ngIf="screen === 'lobby' && !game" class="card lobby">
+<button type="button" class="back-home-button" (click)="openHome()">← Back</button>
     <div class="lobby-title">
       <div class="ludo-icon">🎲</div>
       <div>
@@ -33,7 +214,6 @@
         <p>Create a room or join your friend's room.</p>
       </div>
     </div>
-
     <label>
       Your name
       <input
@@ -42,20 +222,17 @@
         placeholder="Enter your name"
       />
     </label>
-
     <button
       class="primary-button"
       (click)="create()"
    >
       🎮 Create Room
     </button>
-
     <div class="or">
       <span></span>
       OR
       <span></span>
     </div>
-
     <label>
       Room code
       <input
@@ -65,24 +242,36 @@
         style="text-transform: uppercase"
       />
     </label>
-
     <button
       class="secondary-button"
       (click)="join()"
    >
       🚪 Join Room
     </button>
-
-
     <p class="error" *ngIf="error">
       {{ error }}
     </p>
   </section>
-
-
   <!-- GAME -->
-  <section *ngIf="game" class="game">
-
+  <section *ngIf="screen === 'game' && game" class="game">
+    <!-- ROOM CODE - always visible inside the game screen -->
+    <div class="game-room-header">
+      <div class="game-room-title">
+        <span class="game-room-icon">🎲</span>
+        <div>
+          <small>LUDO ONLINE</small>
+          <strong>Room: {{ game.roomCode || room }}</strong>
+        </div>
+      </div>
+      <button
+        type="button"
+        class="game-room-copy"
+        (click)="copyRoomCode()"
+        [attr.aria-label]="copiedRoom ? 'Room code copied' : 'Copy room code'"
+      >
+        {{ copiedRoom ? '✓ Copied' : '📋 Copy' }}
+      </button>
+    </div>
     <!-- PLAYERS -->
     <div class="players">
       <div
@@ -91,12 +280,10 @@
         [class.active]="game.currentPlayer === pi"
         [class.me]="p.id === myId"
      >
-
         <span
           class="dot"
           [style.background]="getPlayerColor(pi)"
        ></span>
-
         <div class="player-info">
           <strong>
             {{ p.name }}
@@ -107,7 +294,6 @@
               YOU
             </span>
           </strong>
-
          <small>
             {{ p.finished }}/4 finished
           </small>
@@ -121,12 +307,10 @@
             >
               {{ getTurnSeconds() }}s
             </span>
-
             <span class="timeout-count">
               {{ getTimeoutCount(pi) }}/5 timeouts
             </span>
           </div>
-
           <div
             class="turn-progress"
             *ngIf="isCurrentPlayer(pi) && game.status === 'PLAYING'"
@@ -136,7 +320,6 @@
             ></span>
           </div>
         </div>
-
         <span
           class="turn-dot"
           *ngIf="
@@ -148,13 +331,10 @@
         </span>
       </div>
     </div>
-
-
     <!-- BOARD -->
     <div class="board-wrapper">
       <div class="board-shell">
         <div class="board">
-
           <!-- 15 x 15 BASE CELLS -->
           <ng-container
             *ngFor="let row of [].constructor(15); let r = index"
@@ -162,7 +342,6 @@
             <ng-container
               *ngFor="let col of [].constructor(15); let c = index"
            >
-
               <div
                 class="cell"
                 [class.home-green]="r < 6 && c < 6"
@@ -172,9 +351,6 @@
              ></div>
             </ng-container>
           </ng-container>
-
-
-
           <!-- COMMON TRACK -->
           <div
             *ngFor="let cell of track"
@@ -184,7 +360,6 @@
             [style.gridRow]="cell.row + 1"
             [style.gridColumn]="cell.col + 1"
          >
-
             <span
               class="start-arrow"
               *ngIf="isStartPosition(cell.index)"
@@ -200,7 +375,6 @@
            >
               ★
             </span>
-
            <button
   *ngFor="
     let token of trackTokens(cell.index);
@@ -237,11 +411,7 @@
 >
   {{ token.tokenIndex + 1 }}
 </button>
-
-
           </div>
-
-
           <!-- FINISH LANES -->
           <ng-container
             *ngFor="let pi of [0,1,2,3]"
@@ -258,7 +428,6 @@
               [style.gridRow]="lane.row + 1"
               [style.gridColumn]="lane.col + 1"
            >
-
               <button
   *ngFor="
     let token of finishTokens(pi, li);
@@ -295,17 +464,9 @@
 >
   {{ token.tokenIndex + 1 }}
 </button>
-
-
-
             </div>
-
-
           </ng-container>
-
-
           <!-- FOUR FIXED HOME AREAS -->
-
           <ng-container
             *ngFor="let pi of [0,1,2,3]"
          >
@@ -320,7 +481,6 @@
                     let tokenIndex of [0,1,2,3]
                   "
                >
-
                   <button
                     *ngIf="
                       homeTokenVisible(
@@ -358,15 +518,12 @@
               </div>
             </div>
           </ng-container>
-
-
           <!-- CENTER / FINISH PEAK -->
           <div class="center">
             <div class="center-green"></div>
             <div class="center-yellow"></div>
             <div class="center-red"></div>
             <div class="center-blue"></div>
-
             <ng-container *ngFor="let token of centerFinishedTokens(); let i = index; trackBy: trackCenterToken">
               <div
                 class="center-finished-coin"
@@ -380,17 +537,12 @@
                 {{ token.tokenIndex + 1 }}
               </div>
             </ng-container>
-
             <div class="center-logo" *ngIf="centerFinishedTokens().length === 0">
               <strong>LUDO</strong>
               <small>ONLINE</small>
             </div>
           </div>
-
         </div>
-
-
-
         <!-- FOUR-PLAYER CONTROL BAR -->
         <div class="board-controls">
           <div class="player-strip">
@@ -407,18 +559,15 @@
                 p.id === myId
               "
            >
-
               <span
                 class="mini-token"
                 [style.background]="
                   getPlayerColor(pi)
                 "
              ></span>
-
               <span class="mini-player-name">
                 {{ p.id === myId ? 'You' : p.name }}
               </span>
-
               <span
                 class="mini-turn"
                 *ngIf="
@@ -430,10 +579,7 @@
               </span>
             </div>
           </div>
-
-
           <!-- DICE -->
-
           <button
             class="board-dice"
             [class.rolling]="diceRolling"
@@ -450,7 +596,6 @@
             (click)="roll()"
             aria-label="Roll dice"
          >
-
             <span
               class="dice-face"
               *ngIf="
@@ -459,7 +604,6 @@
            >
               🎲
             </span>
-
             <span
               class="dice-face"
               *ngIf="
@@ -468,7 +612,6 @@
            >
               {{ diceFace(displayDice || 1) }}
             </span>
-
             <span
               class="dice-face dice-final-number"
               *ngIf="
@@ -482,8 +625,6 @@
         </div>
       </div>
     </div>
-
-
     <!-- TURN / SECONDARY ROLL -->
     <div class="controls">
       <div class="turn">
@@ -502,16 +643,12 @@
         🎲 Roll Dice
       </button>
     </div>
-
-
-
     <div
       class="game-message"
       *ngIf="game.status === 'WAITING'"
    >
       Waiting for another player...
     </div>
-
     <!-- GRAND WINNER POPUP -->
     <div class="winner-overlay" *ngIf="game.status === 'FINISHED'">
       <div class="winner-modal" role="dialog" aria-modal="true" aria-label="Match result">
@@ -519,7 +656,6 @@
         <div class="winner-kicker">MATCH COMPLETE</div>
         <h2>{{ getWinnerName() }}</h2>
         <p class="winner-title">WINNER</p>
-
         <div class="winner-stats">
           <div class="winner-stat">
             <span class="stat-icon">⏱️</span>
@@ -528,7 +664,6 @@
               <strong>{{ getMatchDurationText() }}</strong>
             </div>
           </div>
-
           <div class="winner-stat">
             <span class="stat-icon">⚔️</span>
             <div>
@@ -537,12 +672,10 @@
             </div>
           </div>
         </div>
-
         <div class="winner-footer">
           <span>🎲 Ludo Online</span>
           <span>4 tokens · 52 squares · 1 champion</span>
         </div>
-
         <button
           type="button"
           class="winner-ok-button"
@@ -552,9 +685,6 @@
         </button>
       </div>
     </div>
-
-
-
     <p
       class="error"
       *ngIf="error"
