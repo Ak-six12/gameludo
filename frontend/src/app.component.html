@@ -1,695 +1,2480 @@
 <main class="app">
-<section *ngIf="screen === 'login' && !game" class="login-screen">
+
+
+
+<section *ngIf="screen === 'login' && !game && !profileSetup" class="login-screen">
+
   <div class="login-backdrop login-glow-one"></div>
+
   <div class="login-backdrop login-glow-two"></div>
 
+
+
   <div class="login-card">
+
     <div class="login-brand">
+
       <div class="login-dice">🎲</div>
+
       <div>
+
         <span>LUDO ONLINE</span>
+
         <strong>PLAY. ROLL. WIN.</strong>
+
       </div>
+
     </div>
+
+
 
     <div class="login-heading" *ngIf="loginMode === 'main'">
+
       <h1>Welcome back!</h1>
-      <p>Sign in to save your profile, stats and progress.</p>
+
+      <p>Login with Google, mobile or play as a guest.</p>
+
     </div>
+
+
 
     <div class="login-heading" *ngIf="loginMode === 'mobile'">
+
       <button type="button" class="login-back" (click)="backToLoginMethods()">← Back</button>
+
       <h1>Mobile login</h1>
-      <p>Use your mobile number to continue.</p>
+
+      <p>Enter your mobile number to continue.</p>
+
     </div>
 
+
+
     <ng-container *ngIf="loginMode === 'main'">
+
       <button type="button" class="google-login-button" [disabled]="authBusy" (click)="continueWithGoogle()">
+
         <span class="google-mark">G</span>
+
         <span>Continue with Google</span>
+
       </button>
+
+
 
       <div class="login-divider"><span></span><b>OR</b><span></span></div>
 
+
+
       <button type="button" class="mobile-login-button" [disabled]="authBusy" (click)="selectMobileLogin()">
+
         <span class="mobile-icon">📱</span>
+
         <span>
+
           <strong>Continue with Mobile</strong>
-          <small>OTP verification</small>
+
+          <small>No OTP required</small>
+
         </span>
+
         <b>›</b>
+
       </button>
+
+
 
       <button type="button" class="guest-login-button" [disabled]="authBusy" (click)="continueAsGuest()">
+
         <span>👤</span>
+
         <span>Play as Guest</span>
+
       </button>
+
     </ng-container>
+
+
 
     <ng-container *ngIf="loginMode === 'mobile'">
+
       <label class="login-label">
+
         Mobile number
-        <div class="mobile-input-wrap">
-          <span>+91</span>
-          <input
-            type="tel"
-            [(ngModel)]="mobileNumber"
-            maxlength="10"
-            inputmode="numeric"
-            placeholder="Enter 10-digit number"
-            [disabled]="otpSent || authBusy"
-          />
-        </div>
+
+        <input
+
+          type="text"
+
+          [(ngModel)]="mobileNumber"
+
+          placeholder="Enter your mobile number"
+
+          autocomplete="tel"
+
+          [disabled]="authBusy"
+
+        />
+
       </label>
 
-      <button
-        *ngIf="!otpSent"
-        type="button"
-        class="login-primary-button"
-        [disabled]="authBusy"
-        (click)="sendMobileOtp()"
-      >
-        {{ authBusy ? 'Sending OTP...' : 'Send OTP' }}
+
+
+      <button type="button" class="login-primary-button" [disabled]="authBusy" (click)="loginWithMobile()">
+
+        {{ authBusy ? 'Checking account...' : 'Continue' }}
+
       </button>
 
-      <ng-container *ngIf="otpSent">
-        <label class="login-label">
-          Enter OTP
-          <input
-            class="otp-input"
-            type="text"
-            [(ngModel)]="otp"
-            maxlength="6"
-            inputmode="numeric"
-            placeholder="Enter OTP"
-            [disabled]="authBusy"
-          />
-        </label>
-
-        <button
-          type="button"
-          class="login-primary-button"
-          [disabled]="authBusy"
-          (click)="verifyMobileOtp()"
-        >
-          {{ authBusy ? 'Verifying...' : 'Verify & Continue' }}
-        </button>
-
-        <button type="button" class="resend-button" [disabled]="authBusy" (click)="sendMobileOtp()">
-          Resend OTP
-        </button>
-      </ng-container>
     </ng-container>
 
+
+
     <p class="login-message" *ngIf="authMessage">{{ authMessage }}</p>
+
     <p class="login-error" *ngIf="error">{{ error }}</p>
 
+
+
     <div class="login-footer">
+
       <span>🔒</span>
-      <span>Your account helps keep your games and profile connected.</span>
+
+      <span>Your account keeps your Ludo profile connected.</span>
+
     </div>
+
   </div>
+
 </section>
 
+
+
+<section *ngIf="screen === 'profile' && profileSetup && !game" class="profile-setup-screen">
+
+  <div class="profile-card">
+
+    <div class="profile-avatar">✨</div>
+
+    <span class="profile-kicker">ONE LAST STEP</span>
+
+    <h1>Create your Ludo profile</h1>
+
+    <p>Choose your name, character and gender. This will be saved to your account.</p>
+
+
+
+    <label class="profile-field">
+
+      Name
+
+      <input type="text" [(ngModel)]="name" maxlength="30" placeholder="Enter your name" />
+
+    </label>
+
+
+
+    <div class="profile-section-label">Choose character</div>
+
+    <div class="character-grid">
+
+      <button type="button" class="character-option character-dino" [class.selected]="character === 'dinosaur'" (click)="character = 'dinosaur'">
+
+        <span>🦖</span><strong>Dinosaur</strong>
+
+      </button>
+
+      <button type="button" class="character-option character-lion" [class.selected]="character === 'lion'" (click)="character = 'lion'">
+
+        <span>🦁</span><strong>Lion</strong>
+
+      </button>
+
+      <button type="button" class="character-option character-panda" [class.selected]="character === 'panda'" (click)="character = 'panda'">
+
+        <span>🐼</span><strong>Panda</strong>
+
+      </button>
+
+      <button type="button" class="character-option character-fox" [class.selected]="character === 'fox'" (click)="character = 'fox'">
+
+        <span>🦊</span><strong>Fox</strong>
+
+      </button>
+
+    </div>
+
+
+
+    <div class="profile-section-label">Gender</div>
+
+    <div class="gender-grid">
+
+      <button type="button" class="gender-option" [class.selected]="gender === 'male'" (click)="gender = 'male'">♂ Male</button>
+
+      <button type="button" class="gender-option" [class.selected]="gender === 'female'" (click)="gender = 'female'">♀ Female</button>
+
+    </div>
+
+
+
+    <button type="button" class="profile-save-button" [disabled]="authBusy" (click)="saveProfile()">
+
+      {{ authBusy ? 'Saving...' : 'Save & Continue' }}
+
+    </button>
+
+
+
+    <p class="login-error" *ngIf="error">{{ error }}</p>
+
+  </div>
+
+</section>
+
+
+
   <!-- HEADER -->
+
+
+
   <section class="top" *ngIf="game">
+
+
+
     <div>
+
+
+
       <h1>🎲 Ludo Online</h1>
+
+
+
       <div class="room-info" *ngIf="game">
+
+
+
         <span>Room:</span>
+
+
+
         <strong>{{ game.roomCode }}</strong>
+
+
+
         <button
+
+
+
           type="button"
+
+
+
           class="copy-room-button"
+
+
+
           (click)="copyRoomCode()"
+
+
+
         >
+
+
+
           {{ copiedRoom ? '✓ Copied' : '📋 Copy' }}
+
+
+
         </button>
+
+
+
       </div>
+
+
+
     </div>
+
+
+
     <div class="connection" *ngIf="game">
+
+
+
       ● Online
+
+
+
     </div>
+
+
+
   </section>
+
+
+
   <!-- LOBBY -->
+
+
+
   <!-- HOME SCREEN -->
-  <section *ngIf="screen === 'home' && !game" class="home-screen">
+
+
+
+    <section *ngIf="screen === 'home' && !game" class="home-screen">
+
     <div class="home-topbar">
+
       <div class="home-brand">
+
         <div class="home-logo-dice">🎲</div>
-        <div>
+
+        <div class="home-brand-text">
+
           <span class="home-eyebrow">WELCOME TO</span>
+
           <h1>GAME <span>LUDO</span></h1>
+
         </div>
+
       </div>
+
+
       <div class="home-wallet">
-        <img class="coin-icon" src="assets/ludo-coin.png" alt="Ludo Coin" />
+
+        <div class="selected-character-art">{{ getCharacterEmoji() }}</div>
+
+        <span class="home-player-name">{{ name || 'Player' }}</span>
+
+        <img class="coin-icon" src="assets/ludo-coin.png" alt="Ludo Coin">
+
         <strong>1,250</strong>
-        <button type="button" aria-label="Settings" class="icon-button">⚙️</button>
-        <button type="button" aria-label="Logout" class="icon-button logout-icon" (click)="logout()">↪</button>
+
+        <button type="button" class="icon-button" aria-label="Settings">⚙️</button>
+
+        <button type="button" class="icon-button" aria-label="Logout" (click)="logout()">↪</button>
+
       </div>
+
     </div>
+
+
+
     <div class="home-hero">
-      <div class="hero-glow glow-green"></div>
-      <div class="hero-glow glow-blue"></div>
+
       <div class="hero-copy">
+
         <span class="hero-kicker">YOUR NEXT ADVENTURE</span>
+
         <h2>Roll. Move.<br><span>Conquer.</span></h2>
+
         <p>Challenge friends, build your strategy and become the champion of the board.</p>
+
         <button type="button" class="play-main-button" (click)="openLobby()">
+
           <span class="play-icon">▶</span>
+
           <span>PLAY ONLINE</span>
+
           <small>Play with friends</small>
+
         </button>
+
       </div>
-      <div class="hero-board-art" aria-hidden="true">
+
+
+
+      <div class="hero-board-art">
+
+        <div class="hero-glow glow-green"></div>
+
+        <div class="hero-glow glow-blue"></div>
+
+
+
+        <div class="guardian-card guardian-green">
+
+          <div class="guardian-character">🦖</div>
+
+          <div class="guardian-info">
+
+            <strong>GREEN GUARDIAN</strong>
+
+            <span>RED HOME</span>
+
+          </div>
+
+        </div>
+
+
+
+        <div class="guardian-card guardian-blue">
+
+          <div class="guardian-character">🦕</div>
+
+          <div class="guardian-info">
+
+            <strong>BLUE GUARDIAN</strong>
+
+            <span>YELLOW HOME</span>
+
+          </div>
+
+        </div>
+
+
+
         <div class="floating-token token-red"></div>
+
         <div class="floating-token token-yellow"></div>
+
         <div class="floating-token token-green"></div>
+
         <div class="floating-token token-blue"></div>
+
+
+
         <div class="mini-board-art">
+
           <div class="mini-home mini-green"></div>
+
           <div class="mini-home mini-yellow"></div>
+
           <div class="mini-home mini-red"></div>
+
           <div class="mini-home mini-blue"></div>
+
           <div class="mini-center">🎲</div>
+
         </div>
-        <div class="hero-character-card green-character">
-          <div class="character-art">🦖</div>
-          <span>GREEN GUARDIAN</span>
-        </div>
-        <div class="hero-character-card blue-character">
-          <div class="character-art">🦕</div>
-          <span>BLUE GUARDIAN</span>
-        </div>
+
       </div>
+
     </div>
+
+
+
     <div class="home-actions">
+
       <button type="button" class="action-card" (click)="playWithAi()">
-        <span class="action-icon ai-icon">🤖</span>
+
+        <span class="action-icon">🤖</span>
+
         <span><strong>PLAY WITH AI</strong><small>Practice your strategy</small></span>
+
         <b>›</b>
+
       </button>
+
       <button type="button" class="action-card" (click)="openLobby()">
-        <span class="action-icon room-icon">＋</span>
+
+        <span class="action-icon">＋</span>
+
         <span><strong>CREATE / JOIN ROOM</strong><small>Play with your friends</small></span>
+
         <b>›</b>
+
       </button>
+
     </div>
+
+
+
     <div class="home-bottom">
-      <button type="button" class="bottom-tile">🎁<strong>EVENTS</strong><small>Coming soon</small></button>
-      <button type="button" class="bottom-tile">🏆<strong>LEADERBOARD</strong><small>Top players</small></button>
-      <button type="button" class="bottom-tile">👤<strong>PROFILE</strong><small>{{ name }}</small></button>
-      <button type="button" class="bottom-tile">⚙️<strong>SETTINGS</strong><small>Game settings</small></button>
+
+      <button type="button" class="bottom-tile">
+
+        <span class="bottom-icon">🎁</span>
+
+        <span><strong>EVENTS</strong><small>Coming soon</small></span>
+
+      </button>
+
+      <button type="button" class="bottom-tile">
+
+        <span class="bottom-icon">🏆</span>
+
+        <span><strong>LEADERBOARD</strong><small>Top players</small></span>
+
+      </button>
+
+      <button type="button" class="bottom-tile">
+
+        <span class="bottom-icon">{{ getCharacterEmoji() }}</span>
+
+        <span><strong>{{ name || 'PLAYER' }}</strong><small>{{ getCharacterName() }}</small></span>
+
+      </button>
+
+      <button type="button" class="bottom-tile">
+
+        <span class="bottom-icon">⚙️</span>
+
+        <span><strong>SETTINGS</strong><small>Game settings</small></span>
+
+      </button>
+
     </div>
+
+
+
     <p class="home-error" *ngIf="error">{{ error }}</p>
+
   </section>
+
+
+
   <!-- LOBBY -->
+
+
+
   <section *ngIf="screen === 'lobby' && !game" class="card lobby">
+
+
+
 <button type="button" class="back-home-button" (click)="openHome()">← Back</button>
+
+
+
     <div class="lobby-title">
+
+
+
       <div class="ludo-icon">🎲</div>
+
+
+
       <div>
+
+
+
         <h2>Join a game</h2>
+
+
+
         <p>Create a room or join your friend's room.</p>
+
+
+
       </div>
+
+
+
     </div>
+
+
+
     <label>
+
+
+
       Your name
+
+
+
       <input
+
+
+
         [(ngModel)]="name"
+
+
+
         maxlength="20"
+
+
+
         placeholder="Enter your name"
+
+
+
       />
+
+
+
     </label>
+
+
+
     <button
+
+
+
       class="primary-button"
+
+
+
       (click)="create()"
+
+
+
    >
+
+
+
       🎮 Create Room
+
+
+
     </button>
+
+
+
     <div class="or">
+
+
+
       <span></span>
+
+
+
       OR
+
+
+
       <span></span>
+
+
+
     </div>
+
+
+
     <label>
+
+
+
       Room code
+
+
+
       <input
+
+
+
         [(ngModel)]="room"
+
+
+
         maxlength="6"
+
+
+
         placeholder="ABC123"
+
+
+
         style="text-transform: uppercase"
+
+
+
       />
+
+
+
     </label>
+
+
+
     <button
+
+
+
       class="secondary-button"
+
+
+
       (click)="join()"
+
+
+
    >
+
+
+
       🚪 Join Room
+
+
+
     </button>
+
+
+
     <p class="error" *ngIf="error">
+
+
+
       {{ error }}
+
+
+
     </p>
+
+
+
   </section>
+
+
+
   <!-- GAME -->
+
+
+
   <section *ngIf="screen === 'game' && game" class="game">
+
+
+
     <!-- ROOM CODE - always visible inside the game screen -->
+
+
+
     <div class="game-room-header">
+
+
+
       <div class="game-room-title">
+
+
+
         <span class="game-room-icon">🎲</span>
+
+
+
         <div>
+
+
+
           <small>LUDO ONLINE</small>
+
+
+
           <strong>Room: {{ game.roomCode || room }}</strong>
+
+
+
         </div>
+
+
+
       </div>
+
+
+
       <button
+
+
+
         type="button"
+
+
+
         class="game-room-copy"
+
+
+
         (click)="copyRoomCode()"
+
+
+
         [attr.aria-label]="copiedRoom ? 'Room code copied' : 'Copy room code'"
+
+
+
       >
+
+
+
         {{ copiedRoom ? '✓ Copied' : '📋 Copy' }}
+
+
+
       </button>
+
+
+
     </div>
+
+
+
     <!-- PLAYERS -->
+
+
+
     <div class="players">
+
+
+
       <div
+
+
+
         *ngFor="let p of game.players; let pi = index"
+
+
+
         class="player-card"
+
+
+
         [class.active]="game.currentPlayer === pi"
+
+
+
         [class.me]="p.id === myId"
+
+
+
      >
+
+
+
         <span
+
+
+
           class="dot"
+
+
+
           [style.background]="getPlayerColor(pi)"
+
+
+
        ></span>
+
+
+
         <div class="player-info">
+
+
+
           <strong>
+
+
+
             {{ p.name }}
+
+
+
             <span
+
+
+
               class="you"
+
+
+
               *ngIf="p.id === myId"
+
+
+
            >
+
+
+
               YOU
+
+
+
             </span>
+
+
+
           </strong>
+
+
+
          <small>
+
+
+
             {{ p.finished }}/4 finished
+
+
+
           </small>
+
+
+
           <div
+
+
+
             class="turn-info"
+
+
+
             *ngIf="isCurrentPlayer(pi) && game.status === 'PLAYING'"
+
+
+
           >
+
+
+
             <span
+
+
+
               class="turn-timer"
+
+
+
               [ngClass]="getTurnTimerClass()"
+
+
+
             >
+
+
+
               {{ getTurnSeconds() }}s
+
+
+
             </span>
+
+
+
             <span class="timeout-count">
+
+
+
               {{ getTimeoutCount(pi) }}/5 timeouts
+
+
+
             </span>
+
+
+
           </div>
+
+
+
           <div
+
+
+
             class="turn-progress"
+
+
+
             *ngIf="isCurrentPlayer(pi) && game.status === 'PLAYING'"
+
+
+
           >
+
+
+
             <span
+
+
+
               [style.width.%]="getTurnProgress()"
+
+
+
             ></span>
+
+
+
           </div>
+
+
+
         </div>
+
+
+
         <span
+
+
+
           class="turn-dot"
+
+
+
           *ngIf="
+
+
+
             game.currentPlayer === pi &&
+
+
+
             game.status !== 'FINISHED'
+
+
+
           "
+
+
+
        >
+
+
+
           ●
+
+
+
         </span>
+
+
+
       </div>
+
+
+
     </div>
+
+
+
     <!-- BOARD -->
+
+
+
     <div class="board-wrapper">
+
+
+
       <div class="board-shell">
+
+
+
         <div class="board">
+
+
+
           <!-- 15 x 15 BASE CELLS -->
+
+
+
           <ng-container
+
+
+
             *ngFor="let row of [].constructor(15); let r = index"
+
+
+
          >
+
+
+
             <ng-container
+
+
+
               *ngFor="let col of [].constructor(15); let c = index"
+
+
+
            >
+
+
+
               <div
+
+
+
                 class="cell"
+
+
+
                 [class.home-green]="r < 6 && c < 6"
+
+
+
                 [class.home-yellow]="r < 6 && c>= 9"
+
+
+
                 [class.home-red]="r>= 9 && c < 6"
+
+
+
                 [class.home-blue]="r>= 9 && c>= 9"
+
+
+
              ></div>
+
+
+
             </ng-container>
+
+
+
           </ng-container>
+
+
+
           <!-- COMMON TRACK -->
+
+
+
           <div
+
+
+
             *ngFor="let cell of track"
+
+
+
             class="track-cell"
+
+
+
             [class.start-cell]="isStartPosition(cell.index)"
+
+
+
             [class.safe-cell]="isSafePosition(cell.index)"
+
+
+
             [style.gridRow]="cell.row + 1"
+
+
+
             [style.gridColumn]="cell.col + 1"
+
+
+
          >
+
+
+
             <span
+
+
+
               class="start-arrow"
+
+
+
               *ngIf="isStartPosition(cell.index)"
+
+
+
            >
+
+
+
               {{ startArrow(cell.index) }}
+
+
+
             </span>
+
+
+
             <span
+
+
+
               class="safe-star"
+
+
+
               *ngIf="
+
+
+
                 isSafePosition(cell.index) &&
+
+
+
                 !isStartPosition(cell.index)
+
+
+
               "
+
+
+
            >
+
+
+
               ★
+
+
+
             </span>
+
+
+
            <button
+
+
+
   *ngFor="
+
+
+
     let token of trackTokens(cell.index);
+
+
+
     let ti = index
+
+
+
   "
+
+
+
   type="button"
+
+
+
   class="token"
+
+
+
   [ngClass]="getPlayerColorName(token.playerIndex)"
+
+
+
   [style.background]="
+
+
+
     getPlayerColor(token.playerIndex)
+
+
+
   "
+
+
+
   [style.transform]="
+
+
+
     getStackTransform(
+
+
+
       trackTokens(cell.index).length,
+
+
+
       ti
+
+
+
     )
+
+
+
   "
+
+
+
   [class.movable]="
+
+
+
     canMove(
+
+
+
       token.tokenIndex,
+
+
+
       token.playerIndex
+
+
+
     )
+
+
+
   "
+
+
+
   [attr.aria-disabled]="
+
+
+
     !canMove(
+
+
+
       token.tokenIndex,
+
+
+
       token.playerIndex
+
+
+
     )
+
+
+
   "
+
+
+
   (click)="move(
+
+
+
     token.tokenIndex,
+
+
+
     token.playerIndex
+
+
+
   )"
+
+
+
 >
+
+
+
   {{ token.tokenIndex + 1 }}
+
+
+
 </button>
+
+
+
           </div>
+
+
+
           <!-- FINISH LANES -->
+
+
+
           <ng-container
+
+
+
             *ngFor="let pi of [0,1,2,3]"
+
+
+
          >
+
+
+
             <div
+
+
+
               *ngFor="
+
+
+
                 let lane of finishLanes[getFinishLaneIndex(pi)];
+
+
+
                 let li = index
+
+
+
               "
+
+
+
               class="finish-cell"
+
+
+
               [ngClass]="
+
+
+
                 getPlayerColorName(pi) + '-lane'
+
+
+
               "
+
+
+
               [style.gridRow]="lane.row + 1"
+
+
+
               [style.gridColumn]="lane.col + 1"
+
+
+
            >
+
+
+
               <button
+
+
+
   *ngFor="
+
+
+
     let token of finishTokens(pi, li);
+
+
+
     let ti = index
+
+
+
   "
+
+
+
   type="button"
+
+
+
   class="token"
+
+
+
   [ngClass]="getPlayerColorName(pi)"
+
+
+
   [style.background]="
+
+
+
     getPlayerColor(pi)
+
+
+
   "
+
+
+
   [style.transform]="
+
+
+
     getStackTransform(
+
+
+
       finishTokens(pi, li).length,
+
+
+
       ti
+
+
+
     )
+
+
+
   "
+
+
+
   [class.movable]="
+
+
+
     canMove(
+
+
+
       token.tokenIndex,
+
+
+
       pi
+
+
+
     )
+
+
+
   "
+
+
+
   [attr.aria-disabled]="
+
+
+
     !canMove(
+
+
+
       token.tokenIndex,
+
+
+
       pi
+
+
+
     )
+
+
+
   "
+
+
+
   (click)="move(
+
+
+
     token.tokenIndex,
+
+
+
     pi
+
+
+
   )"
+
+
+
 >
+
+
+
   {{ token.tokenIndex + 1 }}
+
+
+
 </button>
+
+
+
             </div>
+
+
+
           </ng-container>
+
+
+
           <!-- FOUR FIXED HOME AREAS -->
+
+
+
           <ng-container
+
+
+
             *ngFor="let pi of [0,1,2,3]"
+
+
+
          >
+
+
+
             <div
+
+
+
               class="home-area"
+
+
+
               [ngClass]="getHomeClass(pi)"
+
+
+
            >
+
+
+
               <div class="home-inner">
+
+
+
                 <div
+
+
+
                   class="home-slot"
+
+
+
                   *ngFor="
+
+
+
                     let tokenIndex of [0,1,2,3]
+
+
+
                   "
+
+
+
                >
+
+
+
                   <button
+
+
+
                     *ngIf="
+
+
+
                       homeTokenVisible(
+
+
+
                         pi,
+
+
+
                         tokenIndex
+
+
+
                       )
+
+
+
                     "
+
+
+
                     class="home-token"
+
+
+
                     [ngClass]="
+
+
+
                       getPlayerColorName(pi)
+
+
+
                     "
+
+
+
                     [style.background]="
+
+
+
                       getPlayerColor(pi)
+
+
+
                     "
+
+
+
                     [class.movable]="
+
+
+
                       canMove(
+
+
+
                         tokenIndex,
+
+
+
                         pi
+
+
+
                       )
+
+
+
                     "
+
+
+
                     [attr.aria-disabled]="
+
+
+
   !canMove(
+
+
+
     tokenIndex,
+
+
+
     pi
+
+
+
   )
+
+
+
 "
+
+
+
 (click)="move(
+
+
+
   tokenIndex,
+
+
+
   pi
+
+
+
 )"
+
+
+
                  >
+
+
+
                     {{ tokenIndex + 1 }}
+
+
+
                   </button>
+
+
+
                 </div>
+
+
+
               </div>
+
+
+
             </div>
+
+
+
           </ng-container>
+
+
+
           <!-- CENTER / FINISH PEAK -->
+
+
+
           <div class="center">
+
+
+
             <div class="center-green"></div>
+
+
+
             <div class="center-yellow"></div>
+
+
+
             <div class="center-red"></div>
+
+
+
             <div class="center-blue"></div>
+
+
+
             <ng-container *ngFor="let token of centerFinishedTokens(); let i = index; trackBy: trackCenterToken">
+
+
+
               <div
+
+
+
                 class="center-finished-coin"
+
+
+
                 [ngClass]="[
+
+
+
                   getPlayerColorName(token.playerIndex),
+
+
+
                   'coin-' + (i + 1),
+
+
+
                   centerCoinClass(token.playerIndex, token.tokenIndex)
+
+
+
                 ]"
+
+
+
                 [style.background]="getPlayerColor(token.playerIndex)"
+
+
+
               >
+
+
+
                 {{ token.tokenIndex + 1 }}
+
+
+
               </div>
+
+
+
             </ng-container>
+
+
+
             <div class="center-logo" *ngIf="centerFinishedTokens().length === 0">
+
+
+
               <strong>LUDO</strong>
+
+
+
               <small>ONLINE</small>
+
+
+
             </div>
+
+
+
           </div>
+
+
+
         </div>
+
+
+
         <!-- FOUR-PLAYER CONTROL BAR -->
+
+
+
         <div class="board-controls">
+
+
+
           <div class="player-strip">
+
+
+
             <div
+
+
+
               *ngFor="
+
+
+
                 let p of game.players;
+
+
+
                 let pi = index
+
+
+
               "
+
+
+
               class="mini-player"
+
+
+
               [class.mini-active]="
+
+
+
                 game.currentPlayer === pi
+
+
+
               "
+
+
+
               [class.mini-you]="
+
+
+
                 p.id === myId
+
+
+
               "
+
+
+
            >
+
+
+
               <span
+
+
+
                 class="mini-token"
+
+
+
                 [style.background]="
+
+
+
                   getPlayerColor(pi)
+
+
+
                 "
+
+
+
              ></span>
+
+
+
               <span class="mini-player-name">
+
+
+
                 {{ p.id === myId ? 'You' : p.name }}
+
+
+
               </span>
+
+
+
               <span
+
+
+
                 class="mini-turn"
+
+
+
                 *ngIf="
+
+
+
                   game.currentPlayer === pi &&
+
+
+
                   game.status === 'PLAYING'
+
+
+
                 "
+
+
+
              >
+
+
+
                 ●
+
+
+
               </span>
+
+
+
             </div>
+
+
+
           </div>
+
+
+
           <!-- DICE -->
+
+
+
           <button
+
+
+
             class="board-dice"
+
+
+
             [class.rolling]="diceRolling"
+
+
+
             [class.rolled]="
+
+
+
               !diceRolling &&
+
+
+
               displayDice != null
+
+
+
             "
+
+
+
             [disabled]="
+
+
+
               game.status !== 'PLAYING' ||
+
+
+
               !isMine() ||
+
+
+
               game.dice != null ||
+
+
+
               movingToken
+
+
+
             "
+
+
+
             (click)="roll()"
+
+
+
             aria-label="Roll dice"
+
+
+
          >
+
+
+
             <span
+
+
+
               class="dice-face"
+
+
+
               *ngIf="
+
+
+
                 displayDice == null
+
+
+
               "
+
+
+
            >
+
+
+
               🎲
+
+
+
             </span>
+
+
+
             <span
+
+
+
               class="dice-face"
+
+
+
               *ngIf="
+
+
+
                 diceRolling
+
+
+
               "
+
+
+
            >
+
+
+
               {{ diceFace(displayDice || 1) }}
+
+
+
             </span>
+
+
+
             <span
+
+
+
               class="dice-face dice-final-number"
+
+
+
               *ngIf="
+
+
+
                 !diceRolling &&
+
+
+
                 displayDice != null
+
+
+
               "
+
+
+
            >
+
+
+
               {{ displayDice }}
+
+
+
             </span>
+
+
+
           </button>
+
+
+
         </div>
+
+
+
       </div>
+
+
+
     </div>
+
+
+
     <!-- TURN / SECONDARY ROLL -->
+
+
+
     <div class="controls">
+
+
+
       <div class="turn">
+
+
+
         {{ playerStatus() }}
+
+
+
       </div>
+
+
+
       <button
+
+
+
         class="roll-button"
+
+
+
         [disabled]="
+
+
+
           game.status !== 'PLAYING' ||
+
+
+
           !isMine() ||
+
+
+
           game.dice != null ||
+
+
+
           movingToken
+
+
+
         "
+
+
+
         (click)="roll()"
+
+
+
      >
+
+
+
         🎲 Roll Dice
+
+
+
       </button>
+
+
+
     </div>
+
+
+
     <div
+
+
+
       class="game-message"
+
+
+
       *ngIf="game.status === 'WAITING'"
+
+
+
    >
+
+
+
       Waiting for another player...
+
+
+
     </div>
+
+
+
     <!-- GRAND WINNER POPUP -->
+
+
+
     <div class="winner-overlay" *ngIf="game.status === 'FINISHED'">
+
+
+
       <div class="winner-modal" role="dialog" aria-modal="true" aria-label="Match result">
+
+
+
         <div class="winner-crown">🏆</div>
+
+
+
         <div class="winner-kicker">MATCH COMPLETE</div>
+
+
+
         <h2>{{ getWinnerName() }}</h2>
+
+
+
         <p class="winner-title">WINNER</p>
+
+
+
         <div class="winner-stats">
+
+
+
           <div class="winner-stat">
+
+
+
             <span class="stat-icon">⏱️</span>
+
+
+
             <div>
+
+
+
               <small>MATCH DURATION</small>
+
+
+
               <strong>{{ getMatchDurationText() }}</strong>
+
+
+
             </div>
+
+
+
           </div>
+
+
+
           <div class="winner-stat">
+
+
+
             <span class="stat-icon">⚔️</span>
+
+
+
             <div>
+
+
+
               <small>MOST COINS KILLED</small>
+
+
+
               <strong>{{ getMostKillerLabel() }}</strong>
+
+
+
             </div>
+
+
+
           </div>
+
+
+
         </div>
+
+
+
         <div class="winner-footer">
+
+
+
           <span>🎲 Ludo Online</span>
+
+
+
           <span>4 tokens · 52 squares · 1 champion</span>
+
+
+
         </div>
+
+
+
         <button
+
+
+
           type="button"
+
+
+
           class="winner-ok-button"
+
+
+
           (click)="returnToCreateRoom()"
+
+
+
         >
+
+
+
           😂 Seri Bye!
+
+
+
         </button>
+
+
+
       </div>
+
+
+
     </div>
+
+
+
     <p
+
+
+
       class="error"
+
+
+
       *ngIf="error"
+
+
+
    >
+
+
+
       {{ error }}
+
+
+
     </p>
+
+
+
   </section>
+
+
+
 </main>
